@@ -195,13 +195,23 @@ window.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  socket.on('game-state', (state) => { handleGameState(state); });
   socket.on('chat-message', ({ playerId, playerName, message }) => {
     addChatMessage(playerName, message, playerId === myPlayerId);
   });
   socket.on('player-left', ({ playerName }) => {
     addLogMessage(`⚠️ ${playerName} ${lang==='az'?'oyundan çıxdı':'left the game'}`);
   });
+});
+
+// Bind critical state listeners immediately to avoid missing first emit
+socket.on('game-state', (state) => { 
+  // If DOM is not fully ready, handleGameState might fail to find elements.
+  // We can wrap it in a requestAnimationFrame or just check document.readyState.
+  if (document.readyState === 'loading') {
+    window.addEventListener('DOMContentLoaded', () => handleGameState(state));
+  } else {
+    handleGameState(state); 
+  }
 });
 
 // ── Language ─────────────────────────────────────────────────
