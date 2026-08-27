@@ -75,6 +75,7 @@ let hasRolledInTie = false;
 let inTieBreaker = false;
 let startingOrderDone = false;
 let startingRollInProgress = false;
+let startingUIInited = false; // ensures initStartingUI runs exactly once
 
 // ── Init ─────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', () => {
@@ -221,28 +222,42 @@ window.setLang = function(l) {
 
 // ── Game State Handler ────────────────────────────────────────
 function handleGameState(state) {
-  const isFirstState = !gameState;
   const wasStarting = !gameState || gameState.startingPhase;
   gameState = state;
   iAmCurrentPlayer = state.currentPlayerId === myPlayerId;
 
-  // First time receiving state - init starting UI
-  if (isFirstState && state.startingPhase) {
+  // Init starting UI whenever we're in starting phase (not just first time)
+  // This handles reconnects and timing issues
+  if (state.startingPhase && !startingUIInited) {
+    startingUIInited = true;
     initStartingUI();
     updateStartBtn();
-    // Restore any already-rolled results (reconnect case)
-    if (state.startingOrderRolls && Object.keys(state.startingOrderRolls).length > 0) {
-      updateStartingRolls(state.startingOrderRolls);
+  }
+
+  // Always update rolls display if we have data
+  if (state.startingPhase && state.startingOrderRolls) {
+    const rolls = state.startingOrderRolls;
+    if (Object.keys(rolls).length > 0) {
+      // Make sure UI exists before updating
+      if (!startingUIInited) {
+        startingUIInited = true;
+        initStartingUI();
+      }
+      updateStartingRolls(rolls);
     }
   }
 
   // Starting phase just ended → game now live
   if (!state.startingPhase && wasStarting && !startingOrderDone) {
     startingOrderDone = true;
-    // Only transition if start-roll-result didn't already trigger it
     if (!document.getElementById('game-layout').classList.contains('visible-after-start')) {
       transitionToGame();
     }
+  }
+
+  // If no longer in starting phase and game-layout is still hidden, force transition
+  if (!state.startingPhase && !startingOrderDone) {
+    transitionToGame();
   }
 
   updateBoard(state, buildColorMap(), lang);

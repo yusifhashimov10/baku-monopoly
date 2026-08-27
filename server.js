@@ -201,9 +201,9 @@ io.on('connection', (socket) => {
   // ROLL FOR START ORDER
   socket.on('roll-for-start', ({ roomCode, playerId }, cb) => {
     const room = rooms.get(roomCode);
-    if (!room || !room.game) return;
+    if (!room || !room.game) return cb && cb({ error: 'Oyun tapılmadı' });
     const result = room.game.rollForStart(playerId);
-    if (!result) return cb && cb({ error: 'Already rolled or not in starting phase' });
+    if (!result) return cb && cb({ error: 'Artıq zər atmısınız' });
 
     // Always broadcast so all players see the updated rolls
     broadcastGameState(roomCode);
@@ -220,9 +220,9 @@ io.on('connection', (socket) => {
   // ROLL FOR START TIE
   socket.on('roll-for-start-tie', ({ roomCode, playerId }, cb) => {
     const room = rooms.get(roomCode);
-    if (!room || !room.game) return;
+    if (!room || !room.game) return cb && cb({ error: 'Oyun tapılmadı' });
     const result = room.game.rollForStartTie(playerId);
-    if (!result) return cb && cb({ error: 'Already rolled' });
+    if (!result) return cb && cb({ error: 'Artıq zər atmısınız' });
 
     // Always broadcast so all players see tie re-rolls
     broadcastGameState(roomCode);
