@@ -311,23 +311,7 @@ function initStartingUI() {
     `;
     container.appendChild(div);
   });
-
-  // Add mini dice area for animations in overlay
-  let diceArea = document.getElementById('start-dice-area');
-  if (!diceArea) {
-    diceArea = document.createElement('div');
-    diceArea.id = 'start-dice-area';
-    diceArea.className = 'start-dice-area';
-    diceArea.innerHTML = `
-      <div class="start-dice-row">
-        <div class="die start-die" id="start-die1">🎲</div>
-        <div class="die start-die" id="start-die2">🎲</div>
-      </div>
-    `;
-    // Insert before button
-    const btn = document.getElementById('btn-roll-start');
-    if (btn) btn.parentNode.insertBefore(diceArea, btn);
-  }
+  // Note: start-die1 / start-die2 are now in game.html directly, no need to create them here
 }
 
 function updateStartingRolls(rolls) {
@@ -430,17 +414,39 @@ window.rollForStart = function() {
   if (!canRoll || startingRollInProgress) return;
 
   startingRollInProgress = true;
-  // Animate my own dice immediately for instant feedback
-  const d1 = Math.floor(Math.random() * 6) + 1;
-  const d2 = Math.floor(Math.random() * 6) + 1;
-  animateStartDice(d1, d2, () => { startingRollInProgress = false; });
+
+  // Immediately show feedback so user knows click worked
+  const statusEl = document.getElementById('starting-status');
+  if (statusEl) {
+    statusEl.textContent = lang === 'az' ? '☀️ Zər atıldı, nəticə gəlir...' : '☀️ Rolled, waiting for result...';
+  }
+  // Animate dice immediately (local preview)
+  animateStartDice(
+    Math.floor(Math.random() * 6) + 1,
+    Math.floor(Math.random() * 6) + 1,
+    () => { startingRollInProgress = false; }
+  );
 
   if (inTieBreaker) {
     hasRolledInTie = true;
-    socket.emit('roll-for-start-tie', { roomCode: myRoomCode, playerId: myPlayerId });
+    socket.emit('roll-for-start-tie', { roomCode: myRoomCode, playerId: myPlayerId }, (res) => {
+      if (res?.error) {
+        showToast(res.error, 'error');
+        hasRolledInTie = false;
+        startingRollInProgress = false;
+        updateStartBtn();
+      }
+    });
   } else {
     hasRolledForStart = true;
-    socket.emit('roll-for-start', { roomCode: myRoomCode, playerId: myPlayerId });
+    socket.emit('roll-for-start', { roomCode: myRoomCode, playerId: myPlayerId }, (res) => {
+      if (res?.error) {
+        showToast(res.error, 'error');
+        hasRolledForStart = false;
+        startingRollInProgress = false;
+        updateStartBtn();
+      }
+    });
   }
   updateStartBtn();
 };

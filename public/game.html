@@ -26,6 +26,15 @@
         Hər oyunçu bir zər atır. Ən yüksək rəqəm birinci oynayır.
       </p>
       <div id="starting-rolls" class="starting-rolls"></div>
+
+      <!-- Dice animation area - always in DOM -->
+      <div id="start-dice-area" class="start-dice-area">
+        <div class="start-dice-row">
+          <div class="die start-die" id="start-die1">🎲</div>
+          <div class="die start-die" id="start-die2">🎲</div>
+        </div>
+      </div>
+
       <button id="btn-roll-start" class="btn-primary" onclick="rollForStart()">
         <span class="btn-icon">🎲</span>
         <span data-az="Zər At" data-en="Roll Die">Zər At</span>
