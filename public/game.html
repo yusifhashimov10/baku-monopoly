@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Bakı Monopoly - Oyun</title>
+  <meta name="description" content="Bakı Monopoly oyun taxtası"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="/css/main.css"/>
+  <link rel="stylesheet" href="/css/game.css"/>
+</head>
+<body class="game-body">
+
+  <!-- Language Toggle -->
+  <div class="lang-toggle">
+    <button class="lang-btn active" id="btn-az" onclick="setLang('az')">AZ</button>
+    <button class="lang-btn" id="btn-en" onclick="setLang('en')">EN</button>
+  </div>
+
+  <!-- ═══════════════ STARTING ORDER OVERLAY ═══════════════ -->
+  <div id="starting-overlay" class="overlay-full">
+    <div class="starting-panel glass-panel">
+      <h2 data-az="Kim birinci oynayacaq?" data-en="Who goes first?">Kim birinci oynayacaq?</h2>
+      <p class="sub-text" data-az="Hər oyunçu bir zər atır. Ən yüksək rəqəm birinci oynayır." data-en="Each player rolls one die. Highest roll goes first.">
+        Hər oyunçu bir zər atır. Ən yüksək rəqəm birinci oynayır.
+      </p>
+      <div id="starting-rolls" class="starting-rolls"></div>
+      <button id="btn-roll-start" class="btn-primary" onclick="rollForStart()">
+        <span class="btn-icon">🎲</span>
+        <span data-az="Zər At" data-en="Roll Die">Zər At</span>
+      </button>
+      <div id="starting-status" class="starting-status"></div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ MAIN GAME LAYOUT ═══════════════ -->
+  <div id="game-layout" class="game-layout hidden">
+
+    <!-- LEFT: Player Sidebar -->
+    <aside class="sidebar-left" id="sidebar-left">
+      <div class="sidebar-header">
+        <span class="sidebar-title" data-az="Oyunçular" data-en="Players">Oyunçular</span>
+        <span id="bank-pool" class="bank-pool" title="Pulsuz Park Fondu">🅿️ 0₼</span>
+      </div>
+      <div id="player-list" class="player-list"></div>
+    </aside>
+
+    <!-- CENTER: Board -->
+    <main class="board-container">
+      <div id="board-wrap" class="board-wrap">
+        <canvas id="board-canvas" class="board-canvas"></canvas>
+        <!-- Player tokens rendered as HTML overlays -->
+        <div id="tokens-overlay" class="tokens-overlay"></div>
+      </div>
+    </main>
+
+    <!-- RIGHT: Action Panel -->
+    <aside class="sidebar-right" id="sidebar-right">
+
+      <!-- Current Turn Info -->
+      <div class="turn-panel glass-panel">
+        <div class="turn-label" data-az="Sıra" data-en="Turn">Sıra</div>
+        <div id="turn-player" class="turn-player">-</div>
+        <div id="turn-phase" class="turn-phase">-</div>
+      </div>
+
+      <!-- Dice -->
+      <div class="dice-panel glass-panel">
+        <div class="dice-row">
+          <div class="die" id="die1">?</div>
+          <div class="die" id="die2">?</div>
+        </div>
+        <div id="doubles-badge" class="doubles-badge hidden" data-az="QOŞA! Yenidən at!" data-en="DOUBLES! Roll again!">QOŞA!</div>
+        <button id="btn-roll" class="btn-primary btn-dice hidden" onclick="rollDice()">
+          🎲 <span data-az="Zər At" data-en="Roll Dice">Zər At</span>
+        </button>
+        <button id="btn-end-turn" class="btn-secondary btn-dice hidden" onclick="endTurn()">
+          ⏭ <span data-az="Növbəti" data-en="Next Turn">Növbəti</span>
+        </button>
+      </div>
+
+      <!-- Jail Actions -->
+      <div id="jail-panel" class="jail-panel glass-panel hidden">
+        <div class="jail-title">⛓️ <span data-az="Həbsxana" data-en="Jail">Həbsxana</span></div>
+        <button class="btn-secondary btn-sm" onclick="payJail()">
+          💰 <span data-az="50₼ ödə" data-en="Pay 50₼">50₼ ödə</span>
+        </button>
+        <button class="btn-secondary btn-sm" id="btn-jail-card" onclick="useJailCard()">
+          🃏 <span data-az="Kart istifad et" data-en="Use Card">Kart istifad et</span>
+        </button>
+      </div>
+
+      <!-- Buy Panel -->
+      <div id="buy-panel" class="buy-panel glass-panel hidden">
+        <div class="buy-prop-icon" id="buy-prop-icon">🏠</div>
+        <div class="buy-prop-name" id="buy-prop-name">-</div>
+        <div class="buy-prop-price" id="buy-prop-price">-</div>
+        <div class="buy-prop-rent" id="buy-prop-rent"></div>
+        <div class="buy-actions">
+          <button class="btn-primary btn-sm" onclick="buyProperty()">
+            🏠 <span data-az="Al" data-en="Buy">Al</span>
+          </button>
+          <button class="btn-secondary btn-sm" onclick="declineBuy()">
+            🔨 <span data-az="Artırmaya çıxar" data-en="Auction">Artırma</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Build Panel -->
+      <div id="build-panel" class="build-panel glass-panel hidden">
+        <div class="panel-title" data-az="Tikinti" data-en="Build">Tikinti</div>
+        <div id="build-props-list" class="build-props-list"></div>
+      </div>
+
+      <!-- My Properties -->
+      <div class="my-props-panel glass-panel">
+        <div class="panel-title" data-az="Mənim mülklərim" data-en="My Properties">Mənim mülklərim</div>
+        <div id="my-props-list" class="my-props-list"></div>
+      </div>
+
+      <!-- Chat -->
+      <div class="chat-panel glass-panel">
+        <div class="panel-title" data-az="Söhbət" data-en="Chat">Söhbət</div>
+        <div id="chat-messages" class="chat-messages"></div>
+        <div class="chat-input-row">
+          <input type="text" id="chat-input" class="input-field chat-input" placeholder="..." maxlength="80" onkeydown="chatKeyDown(event)"/>
+          <button class="btn-secondary chat-send" onclick="sendChat()">➤</button>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <!-- ═══════════════ CARD MODAL ═══════════════ -->
+  <div id="card-modal" class="modal-overlay hidden">
+    <div class="card-modal-inner glass-panel">
+      <div class="card-type-badge" id="card-type-badge">ŞANS</div>
+      <div class="card-text" id="card-text">-</div>
+      <button class="btn-primary" id="btn-execute-card" onclick="executeCard()">
+        <span data-az="Davam Et" data-en="Continue">Davam Et</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ═══════════════ AUCTION MODAL ═══════════════ -->
+  <div id="auction-modal" class="modal-overlay hidden">
+    <div class="auction-inner glass-panel">
+      <h3 data-az="Açıq Artırma" data-en="Auction">Açıq Artırma</h3>
+      <div class="auction-prop" id="auction-prop">-</div>
+      <div class="auction-current">
+        <span data-az="Cari ən yüksək təklif:" data-en="Current highest bid:">Cari ən yüksək:</span>
+        <span class="auction-price" id="auction-price">0₼</span>
+        <span class="auction-bidder" id="auction-bidder"></span>
+      </div>
+      <div class="auction-input-row">
+        <input type="number" id="auction-bid-input" class="input-field" placeholder="Təklifiniz..." min="1"/>
+        <button class="btn-primary btn-sm" onclick="placeBid()">
+          <span data-az="Təklif Ver" data-en="Bid">Təklif</span>
+        </button>
+      </div>
+      <button class="btn-secondary" onclick="passAuction()">
+        <span data-az="Keç" data-en="Pass">Keç</span>
+      </button>
+      <div class="auction-bids-log" id="auction-bids-log"></div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ TRADE MODAL ═══════════════ -->
+  <div id="trade-modal" class="modal-overlay hidden">
+    <div class="trade-inner glass-panel">
+      <h3 data-az="Mübadilə" data-en="Trade">Mübadilə</h3>
+      <div class="trade-sides">
+        <!-- My offer -->
+        <div class="trade-side">
+          <div class="trade-side-label" data-az="Mənim Təklifim" data-en="My Offer">Mənim Təklifim</div>
+          <div id="trade-my-props" class="trade-props"></div>
+          <div class="trade-money-row">
+            <span>₼</span>
+            <input type="number" id="trade-my-money" class="input-field" value="0" min="0"/>
+          </div>
+        </div>
+        <div class="trade-arrow">⇌</div>
+        <!-- Their offer -->
+        <div class="trade-side">
+          <div class="trade-side-label" id="trade-other-label" data-az="Onların Mülkləri" data-en="Their Properties">Onların Mülkləri</div>
+          <div id="trade-other-props" class="trade-props"></div>
+          <div class="trade-money-row">
+            <span>₼</span>
+            <input type="number" id="trade-other-money" class="input-field" value="0" min="0"/>
+          </div>
+        </div>
+      </div>
+      <div class="trade-actions">
+        <button class="btn-primary" onclick="sendTrade()">
+          <span data-az="Göndər" data-en="Send Offer">Göndər</span>
+        </button>
+        <button class="btn-secondary" onclick="closeTrade()">
+          <span data-az="Ləğv Et" data-en="Cancel">Ləğv Et</span>
+        </button>
+      </div>
+      <!-- Incoming trade -->
+      <div id="trade-incoming" class="trade-incoming hidden">
+        <div class="trade-incoming-text" id="trade-incoming-text"></div>
+        <div class="trade-actions">
+          <button class="btn-primary" onclick="respondTrade(true)">✅ <span data-az="Qəbul Et" data-en="Accept">Qəbul Et</span></button>
+          <button class="btn-secondary" onclick="respondTrade(false)">❌ <span data-az="Rədd Et" data-en="Reject">Rədd Et</span></button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ PROPERTY INFO MODAL ═══════════════ -->
+  <div id="prop-info-modal" class="modal-overlay hidden" onclick="closePropInfo()">
+    <div class="prop-info-inner glass-panel" onclick="event.stopPropagation()">
+      <button class="modal-close" onclick="closePropInfo()">✕</button>
+      <div class="prop-info-icon" id="prop-info-icon">🏠</div>
+      <div class="prop-info-name" id="prop-info-name">-</div>
+      <div class="prop-info-group" id="prop-info-group"></div>
+      <table class="rent-table" id="rent-table"></table>
+      <div class="prop-info-actions" id="prop-info-actions"></div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ GAME OVER MODAL ═══════════════ -->
+  <div id="gameover-modal" class="modal-overlay hidden">
+    <div class="gameover-inner glass-panel">
+      <div class="gameover-emoji">🏆</div>
+      <h2 data-az="Oyun Bitdi!" data-en="Game Over!">Oyun Bitdi!</h2>
+      <div class="gameover-winner" id="gameover-winner"></div>
+      <button class="btn-primary" onclick="window.location.href='/'">
+        <span data-az="Ana Səhifəyə Qayıt" data-en="Back to Home">Ana Səhifəyə Qayıt</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ═══════════════ TRANSPORT TELEPORT MODAL ═══════════════ -->
+  <div id="transport-modal" class="modal-overlay hidden">
+    <div class="transport-inner glass-panel">
+      <h3 data-az="Transport Seç" data-en="Select Transport">Transport Seç</h3>
+      <p class="sub-text" data-az="4 transportun da sahibisiniz - birini seçib ora gedə bilərsiniz!" data-en="You own all 4 transports - teleport to any!">
+        4 transportun da sahibisiniz - birini seçib ora gedə bilərsiniz!
+      </p>
+      <div id="transport-options" class="transport-options"></div>
+      <button class="btn-secondary" onclick="closeTransportModal()">
+        <span data-az="Bağla" data-en="Close">Bağla</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/board.js"></script>
+  <script src="/js/dice.js"></script>
+  <script src="/js/cards.js"></script>
+  <script src="/js/trade.js"></script>
+  <script src="/js/auction.js"></script>
+  <script src="/js/game.js"></script>
+</body>
+</html>

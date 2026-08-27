@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Bakı Monopoly - Ana Səhifə</title>
+  <meta name="description" content="Bakı şəhərinə əsaslanan multiplayer Monopoly oyunu. Otaq yarat və dostlarınla oyna!"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="/css/main.css"/>
+</head>
+<body>
+  <!-- Background -->
+  <div class="bg-animated">
+    <div class="bg-blob blob1"></div>
+    <div class="bg-blob blob2"></div>
+    <div class="bg-blob blob3"></div>
+  </div>
+
+  <!-- Language Toggle -->
+  <div class="lang-toggle">
+    <button class="lang-btn active" id="btn-az" onclick="setLang('az')">AZ</button>
+    <button class="lang-btn" id="btn-en" onclick="setLang('en')">EN</button>
+  </div>
+
+  <!-- Header -->
+  <header class="hero">
+    <div class="hero-badge" data-az="Bakı Əsaslı" data-en="Baku Edition">Bakı Əsaslı</div>
+    <h1 class="hero-title">
+      <span class="title-baku">BAKI</span>
+      <span class="title-mono">MONOPOLY</span>
+    </h1>
+    <p class="hero-sub" data-az="Bakı şəhərinin rayonlarında mülkiyyət imperiyası qur!" data-en="Build a property empire across Baku's districts!">
+      Bakı şəhərinin rayonlarında mülkiyyət imperiyası qur!
+    </p>
+  </header>
+
+  <!-- Main Panel -->
+  <main class="main-panel">
+    <!-- Tabs -->
+    <div class="tab-bar">
+      <button class="tab active" id="tab-create" onclick="showTab('create')" data-az="Otaq Yarat" data-en="Create Room">Otaq Yarat</button>
+      <button class="tab" id="tab-join" onclick="showTab('join')" data-az="Otağa Qoşul" data-en="Join Room">Otağa Qoşul</button>
+    </div>
+
+    <!-- CREATE TAB -->
+    <div class="tab-content active" id="tab-content-create">
+      <div class="section-label" data-az="Oyunçu məlumatları" data-en="Player information">Oyunçu məlumatları</div>
+
+      <div class="form-group">
+        <label data-az="Adınız" data-en="Your name">Adınız</label>
+        <input type="text" id="create-name" maxlength="20" placeholder="Adınızı daxil edin..." class="input-field"/>
+      </div>
+
+      <!-- Figure Select -->
+      <div class="form-group">
+        <label data-az="Fiqur seçin" data-en="Choose figure">Fiqur seçin</label>
+        <div class="figure-grid" id="figure-grid-create"></div>
+      </div>
+
+      <!-- Color Select -->
+      <div class="form-group">
+        <label data-az="Rəng seçin" data-en="Choose color">Rəng seçin</label>
+        <div class="color-grid" id="color-grid-create"></div>
+      </div>
+
+      <button class="btn-primary" id="btn-create" onclick="createRoom()">
+        <span class="btn-icon">🏠</span>
+        <span data-az="Otaq Yarat" data-en="Create Room">Otaq Yarat</span>
+      </button>
+    </div>
+
+    <!-- JOIN TAB -->
+    <div class="tab-content" id="tab-content-join">
+      <div class="section-label" data-az="Oyunçu məlumatları" data-en="Player information">Oyunçu məlumatları</div>
+
+      <div class="form-group">
+        <label data-az="Adınız" data-en="Your name">Adınız</label>
+        <input type="text" id="join-name" maxlength="20" placeholder="Adınızı daxil edin..." class="input-field"/>
+      </div>
+
+      <div class="form-group">
+        <label data-az="Otaq nömrəsi" data-en="Room code">Otaq nömrəsi</label>
+        <input type="text" id="join-code" maxlength="6" placeholder="6 rəqəmli kod..." class="input-field code-input"/>
+      </div>
+
+      <!-- Figure Select -->
+      <div class="form-group">
+        <label data-az="Fiqur seçin" data-en="Choose figure">Fiqur seçin</label>
+        <div class="figure-grid" id="figure-grid-join"></div>
+      </div>
+
+      <!-- Color Select -->
+      <div class="form-group">
+        <label data-az="Rəng seçin" data-en="Choose color">Rəng seçin</label>
+        <div class="color-grid" id="color-grid-join"></div>
+      </div>
+
+      <button class="btn-primary" id="btn-join" onclick="joinRoom()">
+        <span class="btn-icon">🚪</span>
+        <span data-az="Qoşul" data-en="Join">Qoşul</span>
+      </button>
+    </div>
+  </main>
+
+  <!-- Lobby Room Panel (shows after create/join) -->
+  <div class="lobby-room hidden" id="lobby-room">
+    <div class="lobby-header">
+      <h2 data-az="Oyun Otağı" data-en="Game Room">Oyun Otağı</h2>
+      <div class="room-code-display">
+        <span data-az="Otaq kodu:" data-en="Room code:">Otaq kodu:</span>
+        <span class="room-code-val" id="display-room-code">------</span>
+        <button class="copy-btn" onclick="copyRoomCode()" title="Kopyala">📋</button>
+      </div>
+      <div class="room-link-row">
+        <span data-az="Link:" data-en="Link:">Link:</span>
+        <span class="room-link" id="display-room-link">-</span>
+        <button class="copy-btn" onclick="copyLink()" title="Linki kopyala">🔗</button>
+      </div>
+    </div>
+
+    <div class="players-waiting">
+      <div class="section-label" data-az="Oyunçular" data-en="Players">Oyunçular</div>
+      <div id="lobby-players-list" class="lobby-players"></div>
+      <div class="waiting-info">
+        <span class="dot-pulse"></span>
+        <span data-az="Oyunçular gözlənilir... (min 2, max 8)" data-en="Waiting for players... (min 2, max 8)">Oyunçular gözlənilir... (min 2, max 8)</span>
+      </div>
+    </div>
+
+    <div class="lobby-actions">
+      <button class="btn-secondary" id="btn-ready" onclick="toggleReady()">
+        <span data-az="Hazıram" data-en="Ready">Hazıram</span>
+      </button>
+      <button class="btn-primary hidden" id="btn-start" onclick="startGame()">
+        <span class="btn-icon">🎲</span>
+        <span data-az="Oyunu Başlat" data-en="Start Game">Oyunu Başlat</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Toast notification -->
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/lobby.js"></script>
+</body>
+</html>

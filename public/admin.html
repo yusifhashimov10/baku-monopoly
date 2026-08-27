@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Bakı Monopoly - Admin Panel</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="/css/main.css"/>
+  <style>
+    body { padding: 40px 20px; }
+    .admin-wrap { max-width: 900px; margin: 0 auto; position: relative; z-index: 1; }
+    .admin-header { text-align: center; margin-bottom: 40px; }
+    .admin-header h1 { font-size: 36px; font-weight: 900; margin-bottom: 8px; }
+    .admin-login { max-width: 360px; margin: 0 auto 40px; }
+    .admin-section { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; margin-bottom: 24px; backdrop-filter: blur(10px); }
+    .admin-section h2 { font-size: 18px; font-weight: 700; margin-bottom: 16px; color: var(--gold); }
+    .card-list { display: flex; flex-direction: column; gap: 10px; }
+    .card-item { display: flex; gap: 10px; align-items: flex-start; background: var(--bg-card2); border: 1px solid var(--border); border-radius: 10px; padding: 12px; }
+    .card-item-text { flex: 1; }
+    .card-id { font-size: 10px; color: var(--text-muted); margin-bottom: 4px; }
+    .card-az { font-size: 14px; font-weight: 600; }
+    .card-en { font-size: 12px; color: var(--text-muted); }
+    .card-btns { display: flex; gap: 6px; }
+    .admin-btn { padding: 6px 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-card); color: var(--text); font-family: 'Outfit', sans-serif; font-size: 12px; cursor: pointer; }
+    .admin-btn:hover { border-color: var(--gold); }
+    .admin-btn.danger { border-color: var(--az-red); color: var(--az-red); }
+    .add-card-form { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; }
+    .add-card-form input, .add-card-form textarea { padding: 10px 12px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: 'Outfit', sans-serif; font-size: 14px; outline: none; }
+    .add-card-form textarea { height: 80px; resize: vertical; }
+    .tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+    .admin-tab { padding: 8px 20px; border-radius: 8px; border: 1px solid var(--border); background: transparent; color: var(--text-muted); font-family: 'Outfit'; font-size: 14px; font-weight: 600; cursor: pointer; }
+    .admin-tab.active { background: var(--gold); color: #000; border-color: var(--gold); }
+    .status-bar { text-align: center; padding: 8px; font-size: 14px; color: var(--az-green); }
+  </style>
+</head>
+<body>
+  <div class="bg-animated">
+    <div class="bg-blob blob1"></div>
+    <div class="bg-blob blob2"></div>
+  </div>
+
+  <div class="admin-wrap">
+    <div class="admin-header">
+      <h1>⚙️ Admin Panel</h1>
+      <p style="color:var(--text-muted)">Bakı Monopoly - Kart İdarəetmə</p>
+    </div>
+
+    <!-- Login -->
+    <div id="login-section" class="admin-login">
+      <div class="admin-section">
+        <h2>🔐 Giriş</h2>
+        <div class="add-card-form">
+          <input type="password" id="admin-pass" placeholder="Admin şifrəsi..." onkeydown="if(event.key==='Enter')login()"/>
+          <button class="btn-primary" onclick="login()">Daxil ol</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Cards Panel -->
+    <div id="cards-section" class="hidden">
+      <div class="status-bar" id="status-bar"></div>
+
+      <div class="tabs">
+        <button class="admin-tab active" id="tab-chance" onclick="switchTab('chance')">⚡ Şans Kartları</button>
+        <button class="admin-tab" id="tab-community" onclick="switchTab('community')">💰 Xəzinə Kartları</button>
+      </div>
+
+      <div class="admin-section">
+        <h2 id="cards-title">Şans Kartları</h2>
+        <div class="card-list" id="card-list"></div>
+      </div>
+
+      <!-- Add new card -->
+      <div class="admin-section">
+        <h2>➕ Yeni Kart Əlavə Et</h2>
+        <div class="add-card-form">
+          <input type="text" id="new-card-az" placeholder="Azərbaycan dilindəki mətn..."/>
+          <input type="text" id="new-card-en" placeholder="English text..."/>
+          <input type="text" id="new-card-action" placeholder='Action JSON (məs: {"type":"collectFromBank","amount":50})'/>
+          <button class="btn-primary" onclick="addCard()">➕ Əlavə Et</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const ADMIN_PASS = 'baku2024';
+    let pass = '';
+    let currentTab = 'chance';
+    let cards = { chance: [], community: [] };
+
+    function login() {
+      pass = document.getElementById('admin-pass').value;
+      if (pass !== ADMIN_PASS) {
+        showStatus('Yanlış şifrə!', true);
+        return;
+      }
+      document.getElementById('login-section').classList.add('hidden');
+      document.getElementById('cards-section').classList.remove('hidden');
+      loadCards();
+    }
+
+    async function loadCards() {
+      const res = await fetch('/api/admin/cards', { headers: { 'x-admin-pass': pass } });
+      cards = await res.json();
+      renderCards();
+    }
+
+    function renderCards() {
+      const list = document.getElementById('card-list');
+      const data = cards[currentTab];
+      list.innerHTML = '';
+      data.forEach(card => {
+        const item = document.createElement('div');
+        item.className = 'card-item';
+        item.innerHTML = `
+          <div class="card-item-text">
+            <div class="card-id">${card.id}</div>
+            <div class="card-az">${card.textAz}</div>
+            <div class="card-en">${card.textEn}</div>
+          </div>
+          <div class="card-btns">
+            <button class="admin-btn" onclick="editCard('${card.id}')">✏️</button>
+            <button class="admin-btn danger" onclick="deleteCard('${card.id}')">🗑️</button>
+          </div>
+        `;
+        list.appendChild(item);
+      });
+      document.getElementById('cards-title').textContent =
+        currentTab === 'chance' ? '⚡ Şans Kartları' : '💰 Xəzinə Kartları';
+    }
+
+    function switchTab(tab) {
+      currentTab = tab;
+      document.getElementById('tab-chance').classList.toggle('active', tab==='chance');
+      document.getElementById('tab-community').classList.toggle('active', tab==='community');
+      renderCards();
+    }
+
+    async function addCard() {
+      const az = document.getElementById('new-card-az').value.trim();
+      const en = document.getElementById('new-card-en').value.trim();
+      const actionStr = document.getElementById('new-card-action').value.trim();
+      if (!az || !en) { showStatus('Hər iki dildə mətn daxil edin!', true); return; }
+
+      let action = { type: 'collectFromBank', amount: 0 };
+      if (actionStr) {
+        try { action = JSON.parse(actionStr); }
+        catch { showStatus('Action JSON düzgün deyil!', true); return; }
+      }
+
+      const res = await fetch(`/api/admin/cards/${currentTab}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-admin-pass': pass },
+        body: JSON.stringify({ textAz: az, textEn: en, action }),
+      });
+      const data = await res.json();
+      if (data.added) {
+        cards[currentTab].push(data.card);
+        renderCards();
+        document.getElementById('new-card-az').value = '';
+        document.getElementById('new-card-en').value = '';
+        document.getElementById('new-card-action').value = '';
+        showStatus('Kart əlavə edildi!');
+      }
+    }
+
+    async function deleteCard(id) {
+      if (!confirm('Bu kartı silmək istəyirsiniz?')) return;
+      const res = await fetch(`/api/admin/cards/${currentTab}/${id}`, {
+        method: 'DELETE',
+        headers: { 'x-admin-pass': pass },
+      });
+      const data = await res.json();
+      if (data.removed) {
+        cards[currentTab] = cards[currentTab].filter(c => c.id !== id);
+        renderCards();
+        showStatus('Kart silindi!');
+      }
+    }
+
+    function editCard(id) {
+      const card = cards[currentTab].find(c => c.id === id);
+      if (!card) return;
+      const newAz = prompt('Azərbaycan dilindəki mətn:', card.textAz);
+      if (!newAz) return;
+      const newEn = prompt('English text:', card.textEn);
+      if (!newEn) return;
+      updateCard(id, { textAz: newAz, textEn: newEn });
+    }
+
+    async function updateCard(id, updates) {
+      const res = await fetch(`/api/admin/cards/${currentTab}/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'x-admin-pass': pass },
+        body: JSON.stringify(updates),
+      });
+      const data = await res.json();
+      if (data.updated) {
+        const idx = cards[currentTab].findIndex(c => c.id === id);
+        if (idx !== -1) cards[currentTab][idx] = data.card;
+        renderCards();
+        showStatus('Kart yeniləndi!');
+      }
+    }
+
+    function showStatus(msg, isError = false) {
+      const el = document.getElementById('status-bar');
+      el.textContent = msg;
+      el.style.color = isError ? 'var(--az-red)' : 'var(--az-green)';
+      setTimeout(() => { el.textContent = ''; }, 3000);
+    }
+  </script>
+</body>
+</html>
