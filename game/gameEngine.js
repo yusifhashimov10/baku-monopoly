@@ -43,10 +43,16 @@ class GameEngine {
     this.winner = null;
     this.log = [];
 
-    // ── Starting Phase ─────────────────────────────────────────
-    this.startingPhase = true;
-    this.startingOrderRolls = {};   // { playerId: rollValue }
-    this.tiedPlayers = null;        // array of playerIds in a tie
+    // ── Starting Phase (Disabled) ──────────────────────────────
+    this.startingPhase = false;
+    this.currentPlayerIndex = Math.floor(Math.random() * this.players.length);
+    this.startingOrderRolls = {};
+    this.tiedPlayers = null;
+    
+    this._addLog(
+      `Oyun başladı! İlk oynayan: ${this.currentPlayer.nameAz}`,
+      `Game started! First player: ${this.currentPlayer.nameEn}`
+    );
   }
 
   // ─── Utility ─────────────────────────────────────────────────────────────

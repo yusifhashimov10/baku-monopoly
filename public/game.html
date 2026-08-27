@@ -18,33 +18,8 @@
     <button class="lang-btn" id="btn-en" onclick="setLang('en')">EN</button>
   </div>
 
-  <!-- ═══════════════ STARTING ORDER OVERLAY ═══════════════ -->
-  <div id="starting-overlay" class="overlay-full">
-    <div class="starting-panel glass-panel">
-      <h2 data-az="Kim birinci oynayacaq?" data-en="Who goes first?">Kim birinci oynayacaq?</h2>
-      <p class="sub-text" data-az="Hər oyunçu bir zər atır. Ən yüksək rəqəm birinci oynayır." data-en="Each player rolls one die. Highest roll goes first.">
-        Hər oyunçu bir zər atır. Ən yüksək rəqəm birinci oynayır.
-      </p>
-      <div id="starting-rolls" class="starting-rolls"></div>
-
-      <!-- Dice animation area - always in DOM -->
-      <div id="start-dice-area" class="start-dice-area">
-        <div class="start-dice-row">
-          <div class="die start-die" id="start-die1">🎲</div>
-          <div class="die start-die" id="start-die2">🎲</div>
-        </div>
-      </div>
-
-      <button id="btn-roll-start" class="btn-primary" onclick="rollForStart()">
-        <span class="btn-icon">🎲</span>
-        <span data-az="Zər At" data-en="Roll Die">Zər At</span>
-      </button>
-      <div id="starting-status" class="starting-status"></div>
-    </div>
-  </div>
-
   <!-- ═══════════════ MAIN GAME LAYOUT ═══════════════ -->
-  <div id="game-layout" class="game-layout hidden">
+  <div id="game-layout" class="game-layout">
 
     <!-- LEFT: Player Sidebar -->
     <aside class="sidebar-left" id="sidebar-left">

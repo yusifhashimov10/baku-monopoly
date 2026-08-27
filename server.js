@@ -192,7 +192,7 @@ io.on('connection', (socket) => {
     if (room.players.length < 2) return cb && cb({ error: 'Need at least 2 players' });
 
     room.game = new GameEngine(roomCode, room.players);
-    room.state = 'starting';
+    room.state = 'playing';
     io.to(roomCode).emit('game-started', { roomCode });
     broadcastGameState(roomCode);
     cb && cb({ success: true });
