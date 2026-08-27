@@ -205,11 +205,12 @@ io.on('connection', (socket) => {
     const result = room.game.rollForStart(playerId);
     if (!result) return cb && cb({ error: 'Already rolled or not in starting phase' });
 
+    // Always broadcast so all players see the updated rolls
+    broadcastGameState(roomCode);
     io.to(roomCode).emit('start-roll-result', { playerId, result });
 
     if (result.type === 'ordered') {
       room.state = 'playing';
-      broadcastGameState(roomCode);
     } else if (result.type === 'tie') {
       io.to(roomCode).emit('start-tie', result);
     }
@@ -221,10 +222,14 @@ io.on('connection', (socket) => {
     const room = rooms.get(roomCode);
     if (!room || !room.game) return;
     const result = room.game.rollForStartTie(playerId);
+    if (!result) return cb && cb({ error: 'Already rolled' });
+
+    // Always broadcast so all players see tie re-rolls
+    broadcastGameState(roomCode);
     io.to(roomCode).emit('start-roll-result', { playerId, result });
+
     if (result && result.type === 'ordered') {
       room.state = 'playing';
-      broadcastGameState(roomCode);
     }
     cb && cb({ success: true, result });
   });

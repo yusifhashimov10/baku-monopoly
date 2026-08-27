@@ -12,9 +12,7 @@ const UTILITY_POSITIONS = [12, 28];
 class GameEngine {
   constructor(roomCode, players) {
     this.roomCode = roomCode;
-    // Shuffle player order randomly at start
-    const shuffled = this._shuffleArr([...players]);
-    this.players = shuffled.map((p) => ({
+    this.players = players.map((p) => ({
       ...p,
       position: 0,
       money: 1500,
@@ -44,10 +42,11 @@ class GameEngine {
     this.gameOver = false;
     this.winner = null;
     this.log = [];
-    this._addLog(
-      `Oyun başladı! İlk oynayan: ${this.currentPlayer.nameAz}`,
-      `Game started! First player: ${this.currentPlayer.nameEn}`
-    );
+
+    // ── Starting Phase ─────────────────────────────────────────
+    this.startingPhase = true;
+    this.startingOrderRolls = {};   // { playerId: rollValue }
+    this.tiedPlayers = null;        // array of playerIds in a tie
   }
 
   // ─── Utility ─────────────────────────────────────────────────────────────
@@ -660,6 +659,71 @@ class GameEngine {
     this._addLog(`Sıra: ${this.currentPlayer.nameAz}`, `Turn: ${this.currentPlayer.nameEn}`);
   }
 
+  // ─── Starting Order ───────────────────────────────────────────────────────
+  rollForStart(playerId) {
+    if (!this.startingPhase) return null;
+    // Don't allow if already rolled (not in a tie or not this player's turn to re-roll)
+    const contestants = this.tiedPlayers || this.players.map(p => p.id);
+    if (!contestants.includes(playerId)) return null;
+    if (this.startingOrderRolls[playerId] !== undefined) return null;
+
+    const roll = this._rollDie() + this._rollDie();
+    this.startingOrderRolls[playerId] = roll;
+
+    // Check if all contestants have rolled
+    const allRolled = contestants.every(id => this.startingOrderRolls[id] !== undefined);
+    if (!allRolled) {
+      return { type: 'partial', playerId, roll, allRolls: { ...this.startingOrderRolls } };
+    }
+
+    // Pass this player's roll so client knows the final value for animation
+    const resolved = this._resolveStartOrder(contestants);
+    return { ...resolved, roll };
+  }
+
+  rollForStartTie(playerId) {
+    if (!this.startingPhase || !this.tiedPlayers) return null;
+    if (!this.tiedPlayers.includes(playerId)) return null;
+    if (this.startingOrderRolls[playerId] !== undefined) return null;
+
+    const roll = this._rollDie() + this._rollDie();
+    this.startingOrderRolls[playerId] = roll;
+
+    const allRolled = this.tiedPlayers.every(id => this.startingOrderRolls[id] !== undefined);
+    if (!allRolled) {
+      return { type: 'partial', playerId, roll, allRolls: { ...this.startingOrderRolls } };
+    }
+
+    const resolved = this._resolveStartOrder(this.tiedPlayers);
+    return { ...resolved, roll };
+  }
+
+  _resolveStartOrder(contestants) {
+    const rolls = this.startingOrderRolls;
+    const maxRoll = Math.max(...contestants.map(id => rolls[id]));
+    const topPlayers = contestants.filter(id => rolls[id] === maxRoll);
+
+    if (topPlayers.length > 1) {
+      // Tie among top scorers — reset their rolls and ask them to re-roll
+      this.tiedPlayers = topPlayers;
+      for (const id of topPlayers) delete this.startingOrderRolls[id];
+      return { type: 'tie', tiedPlayers: topPlayers, allRolls: { ...rolls } };
+    }
+
+    // Determine full order: sort all contestants by roll descending
+    const ordered = [...contestants].sort((a, b) => rolls[b] - rolls[a]);
+    // Set current player to the winner
+    const winnerId = ordered[0];
+    this.currentPlayerIndex = this.players.findIndex(p => p.id === winnerId);
+    this.startingPhase = false;
+    this.tiedPlayers = null;
+    this._addLog(
+      `Başlama sırası müəyyən oldu! İlk oynayan: ${this.currentPlayer.nameAz}`,
+      `Starting order decided! First player: ${this.currentPlayer.nameEn}`
+    );
+    return { type: 'ordered', orderedPlayerIds: ordered, allRolls: { ...rolls } };
+  }
+
   // ─── State Snapshot ───────────────────────────────────────────────────────
   getState() {
     return {
@@ -676,7 +740,9 @@ class GameEngine {
       gameOver: this.gameOver,
       winner: this.winner,
       log: this.log.slice(-30),
-      startingPhase: false,  // always false now
+      startingPhase: this.startingPhase,
+      startingOrderRolls: { ...this.startingOrderRolls },
+      tiedPlayers: this.tiedPlayers,
     };
   }
 

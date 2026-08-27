@@ -69,6 +69,13 @@ let myRoomCode = null;
 let gameState = null;
 let iAmCurrentPlayer = false;
 
+// Starting phase state
+let hasRolledForStart = false;
+let hasRolledInTie = false;
+let inTieBreaker = false;
+let startingOrderDone = false;
+let startingRollInProgress = false;
+
 // ── Init ─────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', () => {
   // Parse URL params
@@ -102,7 +109,77 @@ window.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // Everyone sees the dice roll animation
+  // Everyone sees the starting dice roll result
+  socket.on('start-roll-result', ({ playerId, result }) => {
+    if (!result) return;
+
+    // Get the roll value: from allRolls, or from result.roll (partial has it)
+    const roll = (result.allRolls?.[playerId]) ?? result.roll;
+
+    if (roll !== undefined) {
+      // Split the 2-die sum into two dice for animation
+      const d1 = Math.min(6, Math.ceil(roll / 2));
+      const d2 = Math.min(6, roll - d1 > 0 ? roll - d1 : 1);
+      // Animate starting dice panel for ALL clients
+      animateStartDice(d1, d2, () => {
+        // Update all roll displays (use gameState.startingOrderRolls as source of truth)
+        if (result.allRolls && Object.keys(result.allRolls).length > 0) {
+          updateStartingRolls(result.allRolls);
+        } else if (gameState?.startingOrderRolls) {
+          updateStartingRolls(gameState.startingOrderRolls);
+        }
+        // Toast for the roller
+        if (gameState) {
+          const roller = gameState.players.find(p => p.id === playerId);
+          if (roller) {
+            const name = lang === 'az' ? roller.nameAz : roller.nameEn;
+            showToast(`${name}: ${roll} 🎲`, 'info');
+          }
+        }
+        // If order decided, announce winner then transition
+        if (result.type === 'ordered') {
+          const winnerId = result.orderedPlayerIds?.[0];
+          // Try to get winner from gameState (it has updated currentPlayerId)
+          const winnerFromState = gameState?.players.find(p => p.id === (winnerId || gameState?.currentPlayerId));
+          if (winnerFromState) {
+            const wname = lang === 'az' ? winnerFromState.nameAz : winnerFromState.nameEn;
+            const statusEl = document.getElementById('starting-status');
+            if (statusEl) {
+              statusEl.innerHTML = `<span style="color:#FFD700;font-size:1.3em;font-weight:800">🏆 ${wname} ${lang === 'az' ? 'birinci oynayır!' : 'goes first!'}</span>`;
+            }
+          }
+          // Transition to game board after short delay
+          setTimeout(() => {
+            transitionToGame();
+          }, 2500);
+        }
+      });
+    } else if (result.allRolls) {
+      updateStartingRolls(result.allRolls);
+    }
+  });
+
+  // Tie-breaker: only tied players need to re-roll
+  socket.on('start-tie', ({ tiedPlayers }) => {
+    inTieBreaker = true;
+    hasRolledInTie = false;
+    // Reset tied players' display
+    if (gameState) {
+      gameState.players.forEach(p => {
+        if (tiedPlayers.includes(p.id)) {
+          const el = document.getElementById(`srv-${p.id}`);
+          if (el) el.textContent = '?';
+          const item = document.getElementById(`start-roll-${p.id}`);
+          if (item) item.classList.remove('rolled');
+        }
+      });
+    }
+    const statusEl = document.getElementById('starting-status');
+    if (statusEl) statusEl.textContent = lang === 'az' ? 'Bərabərlik! Eyni rəqəm alanlar yenidən atır...' : 'Tie! Re-rolling...';
+    updateStartBtn();
+  });
+
+  // Everyone sees the dice roll animation during main game
   socket.on('dice-rolled', ({ playerId, dice, doubles }) => {
     animateDice(dice[0], dice[1], () => {
       showDoublesBadge(doubles);
@@ -153,14 +230,19 @@ function handleGameState(state) {
   if (isFirstState && state.startingPhase) {
     initStartingUI();
     updateStartBtn();
+    // Restore any already-rolled results (reconnect case)
+    if (state.startingOrderRolls && Object.keys(state.startingOrderRolls).length > 0) {
+      updateStartingRolls(state.startingOrderRolls);
+    }
   }
 
+  // Starting phase just ended → game now live
   if (!state.startingPhase && wasStarting && !startingOrderDone) {
     startingOrderDone = true;
-    setTimeout(() => {
-      document.getElementById('starting-overlay').classList.add('hidden');
-      document.getElementById('game-layout').classList.remove('hidden');
-    }, 500);
+    // Only transition if start-roll-result didn't already trigger it
+    if (!document.getElementById('game-layout').classList.contains('visible-after-start')) {
+      transitionToGame();
+    }
   }
 
   updateBoard(state, buildColorMap(), lang);
@@ -218,24 +300,38 @@ function initStartingUI() {
   container.innerHTML = '';
   gameState.players.forEach(p => {
     const fig = FIGURES_DATA.find(f => f.id === p.figure);
+    const colorHex = PLAYER_COLORS[p.color] || '#fff';
     const div = document.createElement('div');
     div.className = 'start-roll-item';
     div.id = `start-roll-${p.id}`;
     div.innerHTML = `
-      <div class="start-roll-figure">${fig?.emoji || '👤'}</div>
+      <div class="start-roll-figure" style="border-color:${colorHex};background:${colorHex}22">${fig?.emoji || '👤'}</div>
       <div class="start-roll-name">${lang==='az'?p.nameAz:p.nameEn}</div>
       <div class="start-roll-value" id="srv-${p.id}">?</div>
     `;
     container.appendChild(div);
   });
+
+  // Add mini dice area for animations in overlay
+  let diceArea = document.getElementById('start-dice-area');
+  if (!diceArea) {
+    diceArea = document.createElement('div');
+    diceArea.id = 'start-dice-area';
+    diceArea.className = 'start-dice-area';
+    diceArea.innerHTML = `
+      <div class="start-dice-row">
+        <div class="die start-die" id="start-die1">🎲</div>
+        <div class="die start-die" id="start-die2">🎲</div>
+      </div>
+    `;
+    // Insert before button
+    const btn = document.getElementById('btn-roll-start');
+    if (btn) btn.parentNode.insertBefore(diceArea, btn);
+  }
 }
 
-function updateStartingRolls(playerId, result) {
+function updateStartingRolls(rolls) {
   if (!gameState) return;
-  // If it was a single roll result
-  const rolls = result.allRolls || gameState.startingOrderRolls || {};
-
-  // Update display
   Object.entries(rolls).forEach(([pid, roll]) => {
     const el = document.getElementById(`srv-${pid}`);
     if (el && roll !== undefined) {
@@ -244,6 +340,68 @@ function updateStartingRolls(playerId, result) {
       if (item) item.classList.add('rolled');
     }
   });
+
+  // Check if my roll is already in there (e.g. after a reconnect)
+  if (rolls[myPlayerId] !== undefined) {
+    hasRolledForStart = true;
+    updateStartBtn();
+  }
+}
+
+// Animate starting dice in the overlay
+function animateStartDice(d1, d2, callback) {
+  const die1 = document.getElementById('start-die1');
+  const die2 = document.getElementById('start-die2');
+  if (!die1 || !die2) { callback && callback(); return; }
+
+  const faces = ['⚀','⚁','⚂','⚃','⚄','⚅'];
+  let count = 0;
+  const interval = setInterval(() => {
+    die1.textContent = faces[Math.floor(Math.random() * 6)];
+    die2.textContent = faces[Math.floor(Math.random() * 6)];
+    die1.classList.add('rolling');
+    die2.classList.add('rolling');
+    count++;
+    if (count >= 8) {
+      clearInterval(interval);
+      die1.textContent = faces[Math.min(d1, 6) - 1];
+      die2.textContent = faces[Math.min(d2, 6) - 1];
+      die1.classList.remove('rolling');
+      die2.classList.remove('rolling');
+      die1.classList.add('rolled-anim');
+      die2.classList.add('rolled-anim');
+      setTimeout(() => {
+        die1.classList.remove('rolled-anim');
+        die2.classList.remove('rolled-anim');
+        callback && callback();
+      }, 400);
+    }
+  }, 80);
+}
+
+// Transition from starting overlay to game board
+function transitionToGame() {
+  if (startingOrderDone && document.getElementById('game-layout').classList.contains('visible-after-start')) return;
+  startingOrderDone = true;
+  const overlay = document.getElementById('starting-overlay');
+  const layout = document.getElementById('game-layout');
+  if (overlay) {
+    overlay.style.transition = 'opacity 0.8s ease';
+    overlay.style.opacity = '0';
+    setTimeout(() => {
+      overlay.classList.add('hidden');
+      overlay.style.opacity = '';
+    }, 800);
+  }
+  if (layout) {
+    layout.classList.remove('hidden');
+    layout.classList.add('visible-after-start');
+    // Trigger re-render once layout is visible
+    if (gameState) {
+      updateBoard(gameState, buildColorMap(), lang);
+      renderAllUI();
+    }
+  }
 }
 
 function updateStartBtn() {
@@ -256,18 +414,26 @@ function updateStartBtn() {
   btn.disabled = !canRoll;
   btn.style.opacity = canRoll ? '1' : '0.4';
 
+  const spanEl = btn.querySelector('span[data-az]');
+  if (!spanEl) return;
   if (!canRoll) {
-    btn.querySelector('span[data-az]').textContent =
-      lang === 'az' ? 'Gözlənilir...' : 'Waiting...';
+    spanEl.textContent = lang === 'az' ? 'Gözlənilir...' : 'Waiting...';
   } else {
-    btn.querySelector('span[data-az]').textContent =
-      lang === 'az' ? (inTieBreaker ? 'Yenidən At (Bərabərlik)' : 'Zər At') : (inTieBreaker ? 'Re-Roll (Tie)' : 'Roll Die');
+    spanEl.textContent = lang === 'az'
+      ? (inTieBreaker ? 'Yenidən At (Bərabərlik)' : 'Zər At')
+      : (inTieBreaker ? 'Re-Roll (Tie)' : 'Roll Die');
   }
 }
 
 window.rollForStart = function() {
   const canRoll = inTieBreaker ? !hasRolledInTie : !hasRolledForStart;
-  if (!canRoll) return;
+  if (!canRoll || startingRollInProgress) return;
+
+  startingRollInProgress = true;
+  // Animate my own dice immediately for instant feedback
+  const d1 = Math.floor(Math.random() * 6) + 1;
+  const d2 = Math.floor(Math.random() * 6) + 1;
+  animateStartDice(d1, d2, () => { startingRollInProgress = false; });
 
   if (inTieBreaker) {
     hasRolledInTie = true;
