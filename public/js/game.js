@@ -100,6 +100,11 @@ window.addEventListener('DOMContentLoaded', () => {
 
   // Connect socket
   socket = io();
+
+  // Bind game-state listener immediately after socket is created
+  // so it catches the very first state emitted by the server upon reconnect
+  socket.on('game-state', (state) => { handleGameState(state); });
+
   socket.on('connect', () => {
     console.log('Connected:', socket.id);
     socket.emit('rejoin-game', { roomCode: myRoomCode, playerId: myPlayerId }, (res) => {
@@ -203,16 +208,7 @@ window.addEventListener('DOMContentLoaded', () => {
   });
 });
 
-// Bind critical state listeners immediately to avoid missing first emit
-socket.on('game-state', (state) => { 
-  // If DOM is not fully ready, handleGameState might fail to find elements.
-  // We can wrap it in a requestAnimationFrame or just check document.readyState.
-  if (document.readyState === 'loading') {
-    window.addEventListener('DOMContentLoaded', () => handleGameState(state));
-  } else {
-    handleGameState(state); 
-  }
-});
+
 
 // ── Language ─────────────────────────────────────────────────
 window.setLang = function(l) {
