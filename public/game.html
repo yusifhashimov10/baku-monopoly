@@ -114,6 +114,18 @@
         </div>
       </div>
 
+      <!-- Teleport Panel -->
+      <div id="teleport-panel" class="teleport-panel glass-panel hidden">
+        <div class="panel-title" data-az="Teleport (4 Nəqliyyat)" data-en="Teleport (All 4 Transports)">Teleport (4 Nəqliyyat)</div>
+        <div style="font-size: 13px; color: var(--text-muted); margin-bottom: 10px;" 
+             data-az="Siz bütün nəqliyyatlara sahibsiniz. İstədiyiniz nəqliyyata uçmaq istəyirsiniz?" 
+             data-en="You own all transports. Do you want to fly to another transport?"></div>
+        <div class="teleport-options" id="teleport-options" style="display:flex; flex-direction:column; gap:5px; margin-bottom: 10px;"></div>
+        <button class="btn-secondary btn-sm" onclick="skipTeleport()" style="width: 100%;">
+          ✈️ <span data-az="Xeyr, burda qal" data-en="No, stay here">Xeyr, burda qal</span>
+        </button>
+      </div>
+
       <!-- Build Panel -->
       <div id="build-panel" class="build-panel glass-panel hidden">
         <div class="panel-title" data-az="Tikinti" data-en="Build">Tikinti</div>

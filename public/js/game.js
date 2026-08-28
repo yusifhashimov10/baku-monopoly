@@ -499,8 +499,10 @@ function renderAllUI() {
   renderTurnPanel();
   renderDicePanel();
   renderJailPanel();
-  renderMyProps();
   renderBuildPanel();
+  renderTeleportPanel();
+  renderBuildPanel();
+  renderMyProps();
   updateBankPool();
 
   // Log messages
@@ -634,6 +636,7 @@ function renderTurnPanel() {
       jail:     { az:'Həbsdəsən', en:'In jail' },
       endturn:  { az:'Növbəni bitir', en:'End turn' },
       building: { az:'Tikinti',   en:'Building' },
+      teleport: { az:'Köçürülmə', en:'Teleport' },
     };
     const p = phases[gameState.phase] || { az: gameState.phase, en: gameState.phase };
     phaseEl.textContent = lang === 'az' ? p.az : p.en;
@@ -720,7 +723,35 @@ const BOARD_ICONS = {0:'🚀',2:'💰',4:'🏦',5:'✈️',7:'⚡',10:'⛓️',1
 
 function getBoardIcon(id) { return BOARD_ICONS[id] || '🏠'; }
 
-// ── My Properties ─────────────────────────────────────────────
+function renderTeleportPanel() {
+  if (!gameState) return;
+  const panel = document.getElementById('teleport-panel');
+  if (!panel) return;
+
+  const me = gameState.players.find(p => p.id === myPlayerId);
+  if (!me || !iAmCurrentPlayer || gameState.phase !== 'teleport') {
+    panel.classList.add('hidden');
+    return;
+  }
+
+  const options = document.getElementById('teleport-options');
+  options.innerHTML = '';
+  
+  const transports = [5, 15, 25, 35];
+  transports.forEach(id => {
+    if (id === me.position) return;
+    const sq = BOARD_SQUARES[id];
+    const btn = document.createElement('button');
+    btn.className = 'btn-secondary btn-sm';
+    btn.innerHTML = `✈️ ${lang==='az'?sq.name:sq.nameEn}`;
+    btn.onclick = () => teleportTo(id);
+    options.appendChild(btn);
+  });
+
+  panel.classList.remove('hidden');
+}
+
+// ── My Properties Panel ─────────────────────────────────────────────
 function renderMyProps() {
   if (!gameState) return;
   const me = gameState.players.find(p => p.id === myPlayerId);
@@ -735,11 +766,14 @@ function renderMyProps() {
     const colorHex = sq.color ? COLOR_HEX_MAP[sq.color] : '#888';
     const houses = me.houses?.[propId] || 0;
 
+    const isMortgaged = me.mortgaged && me.mortgaged.includes(propId);
+    const lockIcon = isMortgaged ? '<span title="İpotekada">🔒</span>' : '';
+
     const item = document.createElement('div');
     item.className = 'my-prop-item';
     item.innerHTML = `
       <div class="my-prop-color" style="background:${colorHex}"></div>
-      <span class="my-prop-name">${getBoardIcon(propId)} ${name}</span>
+      <span class="my-prop-name" style="${isMortgaged ? 'opacity:0.5;' : ''}">${getBoardIcon(propId)} ${name} ${lockIcon}</span>
       <span class="my-prop-houses">${houses > 0 ? (houses === 5 ? '🏨' : '🏠'.repeat(houses)) : ''}</span>
     `;
     item.onclick = () => showPropInfo(propId);
@@ -817,30 +851,46 @@ function showPropInfo(propId) {
   // Rent table
   const table = document.getElementById('rent-table');
   table.innerHTML = '';
+  
+  if (sq.price) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${lang==='az'?'Alış Qiyməti':'Buy Price'}</td><td>${sq.price}₼</td>`;
+    table.appendChild(tr);
+  }
+
   if (sq.type === 'property' && sq.rent) {
     const labels = lang==='az'
-      ? ['İcàrə','1 Ev','2 Ev','3 Ev','4 Ev','Otel']
-      : ['Rent','1 House','2 Houses','3 Houses','4 Houses','Hotel'];
+      ? ['İcarə (Evsiz)','1 Evlə','2 Evlə','3 Evlə','4 Evlə','Otellə']
+      : ['Rent (No House)','1 House','2 Houses','3 Houses','4 Houses','Hotel'];
     sq.rent.forEach((r, i) => {
       const tr = document.createElement('tr');
       tr.innerHTML = `<td>${labels[i]||i}</td><td>${r}₼</td>`;
       table.appendChild(tr);
     });
-    if (sq.price) {
-      const tr2 = document.createElement('tr');
-      tr2.innerHTML = `<td>${lang==='az'?'Qiymət':'Price'}</td><td>${sq.price}₼</td>`;
-      table.appendChild(tr2);
-    }
-    if (sq.mortgage) {
-      const tr3 = document.createElement('tr');
-      tr3.innerHTML = `<td>${lang==='az'?'İpoteka':'Mortgage'}</td><td>${sq.mortgage}₼</td>`;
-      table.appendChild(tr3);
-    }
     if (sq.houseCost) {
-      const tr4 = document.createElement('tr');
-      tr4.innerHTML = `<td>${lang==='az'?'Ev tikinti':'House cost'}</td><td>${sq.houseCost}₼</td>`;
-      table.appendChild(tr4);
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${lang==='az'?'Ev tikintisi':'House cost'}</td><td>${sq.houseCost}₼</td>`;
+      table.appendChild(tr);
     }
+  } else if (sq.type === 'transport' && sq.rent) {
+    const labels = lang==='az'
+      ? ['1 Nəqliyyat','2 Nəqliyyat','3 Nəqliyyat','4 Nəqliyyat']
+      : ['1 Transport','2 Transports','3 Transports','4 Transports'];
+    sq.rent.forEach((r, i) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${labels[i]||i}</td><td>${r}₼</td>`;
+      table.appendChild(tr);
+    });
+  }
+
+  if (sq.mortgage) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${lang==='az'?'İpoteka qiyməti':'Mortgage value'}</td><td>${sq.mortgage}₼</td>`;
+    table.appendChild(tr);
+    
+    const tr2 = document.createElement('tr');
+    tr2.innerHTML = `<td>${lang==='az'?'İpotekadan çıxarmaq':'Unmortgage cost'}</td><td>${sq.mortgage + 10}₼</td>`;
+    table.appendChild(tr2);
   }
 
   // Actions
@@ -848,12 +898,20 @@ function showPropInfo(propId) {
   const actionsEl = document.getElementById('prop-info-actions');
   actionsEl.innerHTML = '';
 
-  if (me && me.properties.includes(propId) && iAmCurrentPlayer) {
-    const mortgageBtn = document.createElement('button');
-    mortgageBtn.className = 'btn-secondary btn-sm';
-    mortgageBtn.textContent = lang==='az' ? '🏦 İpoteka Et' : '🏦 Mortgage';
-    mortgageBtn.onclick = () => { mortgageProperty(propId); closePropInfo(); };
-    actionsEl.appendChild(mortgageBtn);
+  if (me && iAmCurrentPlayer && gameState.phase === 'rolling') {
+    if (me.properties.includes(propId)) {
+      const mortgageBtn = document.createElement('button');
+      mortgageBtn.className = 'btn-secondary btn-sm';
+      mortgageBtn.textContent = lang==='az' ? '🏦 İpotekaya qoy' : '🏦 Mortgage';
+      mortgageBtn.onclick = () => { mortgageProperty(propId); closePropInfo(); };
+      actionsEl.appendChild(mortgageBtn);
+    } else if (me.mortgaged && me.mortgaged.includes(propId)) {
+      const unmortgageBtn = document.createElement('button');
+      unmortgageBtn.className = 'btn-primary btn-sm';
+      unmortgageBtn.textContent = lang==='az' ? `🏦 İpotekadan çıxart (${sq.mortgage + 10}₼)` : `🏦 Unmortgage (${sq.mortgage + 10}₼)`;
+      unmortgageBtn.onclick = () => { unmortgageProperty(propId); closePropInfo(); };
+      actionsEl.appendChild(unmortgageBtn);
+    }
   }
 
   document.getElementById('prop-info-modal').classList.remove('hidden');
@@ -952,9 +1010,31 @@ window.sellHouse = function(squareId) {
 };
 
 window.mortgageProperty = function(squareId) {
+  if (!iAmCurrentPlayer) return;
   socket.emit('mortgage', { roomCode: myRoomCode, playerId: myPlayerId, squareId }, (res) => {
     if (res?.error) showToast(res.error, 'error');
     else showToast(lang==='az'?'İpoteka edildi':'Mortgaged', 'success');
+  });
+};
+
+window.unmortgageProperty = function(squareId) {
+  if (!iAmCurrentPlayer) return;
+  socket.emit('unmortgage', { roomCode: myRoomCode, playerId: myPlayerId, squareId }, (res) => {
+    if (res?.error) showToast(res.error, 'error');
+  });
+};
+
+window.teleportTo = function(targetSquareId) {
+  if (!iAmCurrentPlayer || gameState.phase !== 'teleport') return;
+  socket.emit('teleport-transport', { roomCode: myRoomCode, playerId: myPlayerId, targetSquareId }, (res) => {
+    if (res?.error) showToast(res.error, 'error');
+  });
+};
+
+window.skipTeleport = function() {
+  if (!iAmCurrentPlayer || gameState.phase !== 'teleport') return;
+  socket.emit('skip-teleport', { roomCode: myRoomCode, playerId: myPlayerId }, (res) => {
+    if (res?.error) showToast(res.error, 'error');
   });
 };
 

@@ -335,11 +335,27 @@ io.on('connection', (socket) => {
     cb && cb(result);
   });
 
+  socket.on('unmortgage', ({ roomCode, playerId, squareId }, cb) => {
+    const room = rooms.get(roomCode);
+    if (!room || !room.game) return;
+    const result = room.game.unmortgage(playerId, squareId);
+    broadcastGameState(roomCode);
+    cb && cb(result);
+  });
+
   // TRANSPORT TELEPORT
   socket.on('teleport-transport', ({ roomCode, playerId, targetSquareId }, cb) => {
     const room = rooms.get(roomCode);
     if (!room || !room.game) return;
     const result = room.game.teleportTransport(playerId, targetSquareId);
+    broadcastGameState(roomCode);
+    cb && cb(result);
+  });
+
+  socket.on('skip-teleport', ({ roomCode, playerId }, cb) => {
+    const room = rooms.get(roomCode);
+    if (!room || !room.game) return;
+    const result = room.game.skipTeleport(playerId);
     broadcastGameState(roomCode);
     cb && cb(result);
   });

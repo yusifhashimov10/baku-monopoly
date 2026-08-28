@@ -324,8 +324,16 @@ function drawSquare(squareData) {
       ctx.arc(0, textH * 0.3, dotR, 0, Math.PI * 2);
       ctx.fill();
     }
-    // Draw houses
-    drawHousesOnSquare(id, 0, nameY - textH*0.1, textW);
+    
+    if (isMortgaged(id)) {
+      ctx.fillStyle = 'rgba(0,0,0,0.6)';
+      ctx.fillRect(-textW/2, -textH/2, textW, textH);
+      ctx.font = `${Math.round(textW * 0.2)}px sans-serif`;
+      ctx.fillText('🔒', 0, 0);
+    } else {
+      // Draw houses
+      drawHousesOnSquare(id, 0, nameY - textH*0.1, textW);
+    }
   }
 
   ctx.restore();
@@ -437,6 +445,16 @@ function getOwnerColor(squareId) {
     }
   }
   return null;
+}
+
+function isMortgaged(squareId) {
+  if (!gameState) return false;
+  for (const p of gameState.players) {
+    if (p.mortgaged && p.mortgaged.includes(squareId)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 function wrapText(text, maxWidth, fontSize) {

@@ -17,6 +17,7 @@ class GameEngine {
       position: 0,
       money: 1500,
       properties: [],
+      mortgaged: [],
       houses: {},
       inJail: false,
       jailTurns: 0,
@@ -38,6 +39,7 @@ class GameEngine {
     this.doublesCount = 0;
     this.auctionData = null;
     this.tradeData = null;
+    this._phaseBeforeTrade = null;
     this.pendingCard = null;
     this.gameOver = false;
     this.winner = null;
@@ -80,6 +82,13 @@ class GameEngine {
       if (p.properties.includes(squareId)) return p;
     }
     return null;
+  }
+
+  _isPropertyMortgaged(squareId) {
+    for (const p of this.players) {
+      if (p.mortgaged && p.mortgaged.includes(squareId)) return true;
+    }
+    return false;
   }
 
   _colorGroupFull(color, ownerId) {
@@ -263,9 +272,20 @@ class GameEngine {
           return { squareType: square.type, square, canBuy: true };
         }
         if (owner.id === player.id) {
-          // Own property - nothing
+          // Own transport and have all 4 → can teleport
+          if (square.type === 'transport' && this._countTransports(player.id) >= 4) {
+            this.phase = 'teleport';
+            return { squareType: square.type, square, ownedBySelf: true, canTeleport: true };
+          }
           this.phase = this.lastDoubles ? 'rolling' : 'endturn';
           return { squareType: square.type, square, ownedBySelf: true };
+        }
+        // If property is mortgaged, no rent
+        if (this._isPropertyMortgaged(square.id)) {
+          this._addLog(`${square.name} ipotekadadır, icarə ödənilmir.`,
+                       `${square.nameEn} is mortgaged, no rent collected.`);
+          this.phase = this.lastDoubles ? 'rolling' : 'endturn';
+          return { squareType: square.type, square, mortgaged: true };
         }
         // Pay rent
         const rent = this._calculateRent(square, owner, this.lastDice);
@@ -537,11 +557,18 @@ class GameEngine {
     const square = this._getSquare(squareId);
     if (square.type !== 'property') return { error: 'Cannot build here' };
     if (!this._colorGroupFull(square.color, playerId)) return { error: 'Need full color group' };
+    // Cannot build on mortgaged property
+    if (player.mortgaged && player.mortgaged.includes(squareId)) return { error: 'Property is mortgaged' };
 
     if (!player.houses) player.houses = {};
     const current = player.houses[squareId] || 0;
     if (current >= 5) return { error: 'Already has hotel' };
     if (player.money < square.houseCost) return { error: 'Not enough money' };
+
+    // Even building rule: can only build if this has the minimum houses in the group
+    const group = boardData.filter(s => s.type === 'property' && s.color === square.color);
+    const minHouses = Math.min(...group.map(s => player.houses[s.id] || 0));
+    if (current > minHouses) return { error: lang === 'az' ? 'Bərabər tikinti qaydası' : 'Must build evenly across color group' };
 
     player.money -= square.houseCost;
     player.houses[squareId] = current + 1;
@@ -557,6 +584,13 @@ class GameEngine {
     if (!player.houses || !player.houses[squareId]) return { error: 'No houses to sell' };
 
     const square = this._getSquare(squareId);
+    const current = player.houses[squareId] || 0;
+
+    // Even selling rule: can only sell if this has the maximum houses in the group
+    const group = boardData.filter(s => s.type === 'property' && s.color === square.color);
+    const maxHouses = Math.max(...group.map(s => player.houses[s.id] || 0));
+    if (current < maxHouses) return { error: 'Must sell evenly across color group' };
+
     const refund = Math.floor(square.houseCost / 2);
     player.houses[squareId]--;
     player.money += refund;
@@ -566,29 +600,59 @@ class GameEngine {
   mortgage(playerId, squareId) {
     const player = this._getPlayerById(playerId);
     if (!player || !player.properties.includes(squareId)) return { error: 'Do not own this property' };
+    if (player.mortgaged && player.mortgaged.includes(squareId)) return { error: 'Already mortgaged' };
     const square = this._getSquare(squareId);
+    // Cannot mortgage if there are houses on any property in the group
+    if (square.type === 'property' && square.color) {
+      const group = boardData.filter(s => s.type === 'property' && s.color === square.color);
+      const hasHouses = group.some(s => player.houses && player.houses[s.id] > 0);
+      if (hasHouses) return { error: 'Must sell all houses in group first' };
+    }
     player.money += square.mortgage;
-    player.properties = player.properties.filter(id => id !== squareId);
-    this._addLog(`${player.nameAz} ${square.name}-ı ipoteka etdi.`, `${player.nameAz} mortgaged ${square.nameEn}.`);
+    if (!player.mortgaged) player.mortgaged = [];
+    player.mortgaged.push(squareId);
+    this._addLog(`${player.nameAz} ${square.name}-ı ipoteka etdi (${square.mortgage}₼).`, `${player.nameAz} mortgaged ${square.nameEn} (${square.mortgage}₼).`);
     return { mortgaged: true, squareId, amount: square.mortgage };
+  }
+
+  unmortgage(playerId, squareId) {
+    const player = this._getPlayerById(playerId);
+    if (!player || !player.properties.includes(squareId)) return { error: 'Do not own this property' };
+    if (!player.mortgaged || !player.mortgaged.includes(squareId)) return { error: 'Not mortgaged' };
+    const square = this._getSquare(squareId);
+    const cost = square.mortgage + 10;
+    if (player.money < cost) return { error: 'Not enough money' };
+    player.money -= cost;
+    player.mortgaged = player.mortgaged.filter(id => id !== squareId);
+    this._addLog(`${player.nameAz} ${square.name}-ı ipotekadan çıxardı (${cost}₼).`, `${player.nameAz} unmortgaged ${square.nameEn} (${cost}₼).`);
+    return { unmortgaged: true, squareId, cost };
   }
 
   // ─── Transport Teleport ───────────────────────────────────────────────────
   teleportTransport(playerId, targetSquareId) {
     const player = this._getPlayerById(playerId);
     if (!player) return { error: 'Invalid player' };
+    if (this.phase !== 'teleport') return { error: 'Not in teleport phase' };
     if (this._countTransports(playerId) < 4) return { error: 'Need all 4 transports' };
     if (!TRANSPORT_POSITIONS.includes(targetSquareId)) return { error: 'Not a transport square' };
     player.position = targetSquareId;
     this._addLog(`${player.nameAz} ${boardData[targetSquareId].name}-a teleport etdi.`,
                  `${player.nameAz} teleported to ${boardData[targetSquareId].nameEn}.`);
+    this.phase = this.lastDoubles ? 'rolling' : 'endturn';
     return { teleported: true, position: targetSquareId };
+  }
+
+  skipTeleport(playerId) {
+    if (this.phase !== 'teleport') return { error: 'Not in teleport phase' };
+    this.phase = this.lastDoubles ? 'rolling' : 'endturn';
+    return { skipped: true };
   }
 
   // ─── Trade ───────────────────────────────────────────────────────────────
   initiateTrade(fromId, toId, offer) {
     // offer: { properties: [squareIds], money: number }
-    // offer can come from both sides
+    // Save current phase to restore after trade
+    this._phaseBeforeTrade = this.phase;
     this.tradeData = {
       fromId, toId,
       fromOffer: offer.fromOffer || { properties: [], money: 0 },
@@ -628,16 +692,18 @@ class GameEngine {
 
     const result = { tradeAccepted: accepted, tradeData: this.tradeData };
     this.tradeData = null;
-    this.phase = this.currentPlayer.id === this.tradeData?.fromId && this.lastDoubles ? 'rolling' : 'endturn';
-    // fix phase
-    this.phase = this.lastDoubles ? 'rolling' : 'endturn';
+    // Restore phase from before trade
+    this.phase = this._phaseBeforeTrade || 'rolling';
+    this._phaseBeforeTrade = null;
     return result;
   }
 
   cancelTrade(playerId) {
     if (!this.tradeData) return { error: 'No trade active' };
     this.tradeData = null;
-    this.phase = this.lastDoubles ? 'rolling' : 'endturn';
+    // Restore phase from before trade
+    this.phase = this._phaseBeforeTrade || 'rolling';
+    this._phaseBeforeTrade = null;
     return { tradeCancelled: true };
   }
 
