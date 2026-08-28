@@ -127,9 +127,9 @@ function drawBoard(lang) {
   const vh = window.innerHeight - 40;
   let size = Math.min(vw, vh, 800);
   
-  // Make board readable on mobile by enforcing a minimum size
+  // Make board readable on mobile by enforcing a minimum size of 800px
   if (window.innerWidth <= 800) {
-    size = Math.max(vw, 600);
+    size = Math.max(vw, 800);
   }
 
   // Guard: if container hasn't been laid out yet, skip rendering
@@ -140,10 +140,9 @@ function drawBoard(lang) {
   canvas.width = size;
   canvas.height = size;
 
-  // 9 normal squares each side + 2 corners = 11 per side
-  // Corner = 2x, 9 normals share remaining space
-  CSQ = Math.round(size / 11);
-  SQ = CSQ;  // corners = 2*SQ wide, so total = 2*SQ + 9*SQ = 11*SQ ✓
+  // Real Monopoly boards have larger corners.
+  CSQ = Math.round(size * 0.135);
+  SQ = (size - 2 * CSQ) / 9;
 
   ctx.clearRect(0, 0, size, size);
 
@@ -299,15 +298,15 @@ function drawSquare(squareData) {
 
   // Icon
   const iconY = orientation === 'bottom' ? textH * 0.18 : -textH * 0.05;
-  ctx.font = `${Math.round(textW * 0.28)}px serif`;
+  ctx.font = `${Math.round(textW * 0.35)}px serif`; // Increased icon size
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(squareData.icon, 0, iconY);
 
   // Name
   const name = currentLang === 'az' ? squareData.name : squareData.nameEn;
-  const nameParts = wrapText(name, textW - 4, Math.round(textW * 0.09));
-  const nameSize = Math.max(6, Math.round(textW * 0.09));
+  const nameSize = Math.max(9, Math.round(textW * 0.14)); // Increased text size
+  const nameParts = wrapText(name, textW - 4, nameSize);
   ctx.font = `600 ${nameSize}px Outfit, sans-serif`;
   ctx.fillStyle = TEXT_CLR;
 
