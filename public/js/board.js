@@ -122,9 +122,14 @@ function drawBoard(lang) {
 
   // Fit board in container
   const container = document.getElementById('board-wrap');
+  if (!container || !container.parentElement) return;
   const vw = container.parentElement.clientWidth - 40;
   const vh = window.innerHeight - 40;
-  const size = Math.min(vw, vh, 800);
+  let size = Math.min(vw, vh, 800);
+
+  // Guard: if container hasn't been laid out yet, skip rendering
+  // (will be re-called once layout is ready)
+  if (size < 100) return;
 
   BOARD_SIZE = size;
   canvas.width = size;

@@ -76,6 +76,7 @@ let inTieBreaker = false;
 let startingOrderDone = false;
 let startingRollInProgress = false;
 let startingUIInited = false; // ensures initStartingUI runs exactly once
+let boardInitialized = false; // ensures board re-renders after layout is ready
 
 // ── Init ─────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', () => {
@@ -94,6 +95,12 @@ window.addEventListener('DOMContentLoaded', () => {
   canvas = document.getElementById('board-canvas');
   ctx = canvas.getContext('2d');
   drawBoard(lang);
+
+  // Re-render board after a short delay to ensure layout has settled
+  // (fixes canvas being 0-size if CSS grid hasn't fully calculated yet)
+  setTimeout(() => {
+    drawBoard(lang);
+  }, 100);
 
   // Board click
   canvas.addEventListener('click', onBoardClick);
@@ -232,19 +239,17 @@ function handleGameState(state) {
   gameState = state;
   iAmCurrentPlayer = state.currentPlayerId === myPlayerId;
 
-  // Init starting UI whenever we're in starting phase (not just first time)
-  // This handles reconnects and timing issues
+  // If starting phase is active, init the starting UI
   if (state.startingPhase && !startingUIInited) {
     startingUIInited = true;
     initStartingUI();
     updateStartBtn();
   }
 
-  // Always update rolls display if we have data
+  // Update rolls display if in starting phase
   if (state.startingPhase && state.startingOrderRolls) {
     const rolls = state.startingOrderRolls;
     if (Object.keys(rolls).length > 0) {
-      // Make sure UI exists before updating
       if (!startingUIInited) {
         startingUIInited = true;
         initStartingUI();
@@ -253,21 +258,25 @@ function handleGameState(state) {
     }
   }
 
-  // Starting phase just ended → game now live
-  if (!state.startingPhase && wasStarting && !startingOrderDone) {
-    startingOrderDone = true;
-    if (!document.getElementById('game-layout').classList.contains('visible-after-start')) {
-      transitionToGame();
-    }
-  }
-
-  // If no longer in starting phase and game-layout is still hidden, force transition
+  // Starting phase ended or was never active → make sure game board is visible
   if (!state.startingPhase && !startingOrderDone) {
+    startingOrderDone = true;
     transitionToGame();
   }
 
   updateBoard(state, buildColorMap(), lang);
   renderAllUI();
+
+  // Re-render board after a short delay on first game state to ensure canvas is properly sized
+  if (!boardInitialized) {
+    boardInitialized = true;
+    setTimeout(() => {
+      if (gameState) {
+        updateBoard(gameState, buildColorMap(), lang);
+        renderTokens();
+      }
+    }, 200);
+  }
 
   // Modals
   if (state.phase === 'card' && state.pendingCard) {
@@ -386,10 +395,11 @@ function animateStartDice(d1, d2, callback) {
 
 // Transition from starting overlay to game board
 function transitionToGame() {
-  if (startingOrderDone && document.getElementById('game-layout').classList.contains('visible-after-start')) return;
-  startingOrderDone = true;
-  const overlay = document.getElementById('starting-overlay');
   const layout = document.getElementById('game-layout');
+  if (!layout) return;
+
+  // Hide any starting overlay if it exists
+  const overlay = document.getElementById('starting-overlay');
   if (overlay) {
     overlay.style.transition = 'opacity 0.8s ease';
     overlay.style.opacity = '0';
@@ -398,15 +408,24 @@ function transitionToGame() {
       overlay.style.opacity = '';
     }, 800);
   }
-  if (layout) {
-    layout.classList.remove('hidden');
-    layout.classList.add('visible-after-start');
-    // Trigger re-render once layout is visible
+
+  // Ensure game layout is visible
+  layout.classList.remove('hidden');
+  layout.classList.add('visible-after-start');
+
+  // Trigger re-render once layout is visible
+  if (gameState) {
+    updateBoard(gameState, buildColorMap(), lang);
+    renderAllUI();
+  }
+
+  // Also re-render after a frame to make sure canvas container has proper dimensions
+  requestAnimationFrame(() => {
     if (gameState) {
       updateBoard(gameState, buildColorMap(), lang);
-      renderAllUI();
+      renderTokens();
     }
-  }
+  });
 }
 
 function updateStartBtn() {
