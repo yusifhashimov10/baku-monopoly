@@ -929,44 +929,16 @@
 
 @media (max-width: 800px) {
   .game-layout { 
-    display: flex; 
-    flex-direction: column; 
-    height: 100dvh;
+    grid-template-columns: 1fr; 
+    grid-template-rows: auto auto auto;
+    height: auto;
+    overflow: visible;
   }
-  
-  .sidebar-left { 
-    order: 1; 
-    flex: 0 0 auto;
-    border-right: none; 
-    border-bottom: 1px solid var(--border);
-    padding: 10px; 
-  }
-  
-  .sidebar-left .player-list { 
-    flex-direction: row; 
-    overflow-x: auto; 
-    gap: 12px;
-    padding-bottom: 4px;
-  }
-  
-  .sidebar-left .player-item {
-    flex: 0 0 auto;
-    min-width: 160px;
-  }
-  
+  .sidebar-left { grid-row: 1; flex-direction: row; overflow-x: auto; height: auto; }
+  .sidebar-right { grid-row: 3; flex-direction: row; flex-wrap: wrap; overflow: visible; height: auto; }
   .board-container { 
-    order: 2; 
-    flex: 1 1 auto; 
-    width: 100%; 
-    min-height: 45vh; /* enough space to see the board and scroll */
-  }
-  
-  .sidebar-right { 
-    order: 3; 
-    flex: 0 0 auto;
-    border-left: none; 
-    border-top: 1px solid var(--border);
-    padding: 10px;
-    max-height: 40vh;
+    grid-row: 2;
+    height: 100vw; /* Perfect square for mobile */
+    min-height: 400px; /* Ensure it's not too small on tiny phones */
   }
 }
