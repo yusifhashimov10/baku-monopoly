@@ -66,7 +66,7 @@ let socket = null;
 let lang = 'az';
 let myPlayerId = null;
 let myRoomCode = null;
-let gameState = null;
+// gameState is declared in board.js (loaded first)
 let iAmCurrentPlayer = false;
 
 // Starting phase state
