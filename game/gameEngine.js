@@ -40,6 +40,7 @@ class GameEngine {
     this.auctionData = null;
     this.tradeData = null;
     this._phaseBeforeTrade = null;
+    this._phaseBeforeDebt = null;
     this.pendingCard = null;
     this.gameOver = false;
     this.winner = null;
@@ -162,21 +163,64 @@ class GameEngine {
 
   _checkBankruptcy(player) {
     if (player.money < 0 && !player.isBankrupt) {
-      // Check if can mortgage
+      // Calculate total available assets
       const totalAssets = player.properties.reduce((sum, propId) => {
+        if (player.mortgaged && player.mortgaged.includes(propId)) return sum;
         const sq = this._getSquare(propId);
         return sum + (sq.mortgage || 0);
       }, 0);
-      if (player.money + totalAssets < 0) {
+      
+      const houseAssets = Object.entries(player.houses || {}).reduce((sum, [propId, count]) => {
+        const sq = this._getSquare(parseInt(propId));
+        return sum + count * Math.floor(sq.houseCost / 2);
+      }, 0);
+
+      if (player.money + totalAssets + houseAssets < 0) {
         this._declareBankruptcy(player);
+      } else {
+        if (this.phase !== 'debt') {
+          this._phaseBeforeDebt = this.phase;
+          this.phase = 'debt';
+        }
       }
     }
   }
 
+  resolveDebt(playerId) {
+    const player = this._getPlayerById(playerId);
+    if (!player) return { error: 'Invalid player' };
+    if (this.phase !== 'debt') return { error: 'Not in debt' };
+    if (player.money < 0) return { error: 'Hələ də borcunuz var' };
+    
+    this.phase = this._phaseBeforeDebt || 'rolling';
+    this._phaseBeforeDebt = null;
+    this._addLog(`${player.nameAz} borcunu ödədi.`, `${player.nameAz} resolved their debt.`);
+    return { resolved: true };
+  }
+
+  declareBankrupt(playerId) {
+    const player = this._getPlayerById(playerId);
+    if (!player || player.isBankrupt) return { error: 'Invalid or already bankrupt' };
+    this._declareBankruptcy(player);
+    
+    // If it was their turn, move to next player
+    if (this.currentPlayer.id === playerId) {
+      if (!this.gameOver) {
+        this._nextTurn();
+      }
+    }
+    return { bankrupt: true };
+  }
+
   _declareBankruptcy(player) {
     player.isBankrupt = true;
-    // Return properties to bank
+    player.position = 10; // Send bankrupt players to just visiting graphically
+    
+    // Unmortgage and remove properties
+    player.mortgaged = [];
+    player.houses = {};
     player.properties = [];
+    
     this._addLog(`${player.nameAz} müflis oldu!`, `${player.nameAz} went bankrupt!`);
 
     const activePlayers = this.players.filter(p => !p.isBankrupt);
@@ -594,6 +638,12 @@ class GameEngine {
     const refund = Math.floor(square.houseCost / 2);
     player.houses[squareId]--;
     player.money += refund;
+    
+    // Automatically resolve debt if they get enough money from selling house
+    if (this.phase === 'debt' && player.money >= 0) {
+      this.resolveDebt(playerId);
+    }
+    
     return { sold: true, squareId, houses: player.houses[squareId], refund };
   }
 
@@ -612,6 +662,12 @@ class GameEngine {
     if (!player.mortgaged) player.mortgaged = [];
     player.mortgaged.push(squareId);
     this._addLog(`${player.nameAz} ${square.name}-ı ipoteka etdi (${square.mortgage}₼).`, `${player.nameAz} mortgaged ${square.nameEn} (${square.mortgage}₼).`);
+    
+    // Automatically resolve debt if they get enough money from mortgage while in debt phase
+    if (this.phase === 'debt' && player.money >= 0) {
+      this.resolveDebt(playerId);
+    }
+
     return { mortgaged: true, squareId, amount: square.mortgage };
   }
 

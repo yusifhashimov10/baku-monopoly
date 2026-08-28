@@ -408,6 +408,22 @@ io.on('connection', (socket) => {
   });
 
   // DISCONNECT
+  socket.on('resolve-debt', ({ roomCode, playerId }, cb) => {
+    const room = rooms.get(roomCode);
+    if (!room || !room.game) return;
+    const result = room.game.resolveDebt(playerId);
+    broadcastGameState(roomCode);
+    cb && cb(result);
+  });
+
+  socket.on('declare-bankrupt', ({ roomCode, playerId }, cb) => {
+    const room = rooms.get(roomCode);
+    if (!room || !room.game) return;
+    const result = room.game.declareBankrupt(playerId);
+    broadcastGameState(roomCode);
+    cb && cb(result);
+  });
+
   socket.on('disconnect', () => {
     const roomInfo = socketToRoom.get(socket.id);
     if (roomInfo) {

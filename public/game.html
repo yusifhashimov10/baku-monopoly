@@ -79,11 +79,17 @@
           <div class="die" id="die2">?</div>
         </div>
         <div id="doubles-badge" class="doubles-badge hidden" data-az="QOŞA! Yenidən at!" data-en="DOUBLES! Roll again!">QOŞA!</div>
-        <button id="btn-roll" class="btn-primary btn-dice hidden" onclick="rollDice()">
+        <button id="btn-roll" class="btn-primary" onclick="rollDice()">
           🎲 <span data-az="Zər At" data-en="Roll Dice">Zər At</span>
         </button>
-        <button id="btn-end-turn" class="btn-secondary btn-dice hidden" onclick="endTurn()">
-          ⏭ <span data-az="Növbəti" data-en="Next Turn">Növbəti</span>
+        <button id="btn-end-turn" class="btn-secondary hidden" onclick="endTurn()">
+          ⏹️ <span data-az="Növbəni Bitir" data-en="End Turn">Növbəni Bitir</span>
+        </button>
+        <button id="btn-resolve-debt" class="btn-primary hidden" onclick="resolveDebt()">
+          ✅ <span data-az="Borcu Ödə" data-en="Resolve Debt">Borcu Ödə</span>
+        </button>
+        <button id="btn-bankrupt-manual" class="btn-secondary hidden" style="margin-top: 5px; color: #ff4444; border-color: #ff4444;" onclick="declareBankrupt()">
+          ☠️ <span data-az="Müflis ol (Çıx)" data-en="Bankrupt (Quit)">Müflis ol (Çıx)</span>
         </button>
       </div>
 
