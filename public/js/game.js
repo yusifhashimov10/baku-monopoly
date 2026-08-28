@@ -985,7 +985,7 @@ window.sendTrade = function() {
   }, (res) => {
     if (res?.error) showToast(res.error, 'error');
     else {
-      closeTrade();
+      _closeTradeUI();
       showToast(lang==='az'?'Təklif göndərildi':'Offer sent', 'success');
     }
   });
@@ -1003,7 +1003,7 @@ window.respondTrade = function(accepted) {
 };
 
 window.closeTrade = function() {
-  closeTrade(); // from trade.js
+  _closeTradeUI();
   socket.emit('cancel-trade', { roomCode: myRoomCode, playerId: myPlayerId });
 };
 

@@ -108,7 +108,7 @@ function getTradeOffer() {
   };
 }
 
-function closeTrade() {
+function _closeTradeUI() {
   document.getElementById('trade-modal').classList.add('hidden');
   _tradeTargetId = null;
   _tradeMySelected = [];
