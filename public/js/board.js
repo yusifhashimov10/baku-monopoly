@@ -126,6 +126,11 @@ function drawBoard(lang) {
   const vw = container.parentElement.clientWidth - 40;
   const vh = window.innerHeight - 40;
   let size = Math.min(vw, vh, 800);
+  
+  // Make board readable on mobile by enforcing a minimum size
+  if (window.innerWidth <= 800) {
+    size = Math.max(vw, 600);
+  }
 
   // Guard: if container hasn't been laid out yet, skip rendering
   // (will be re-called once layout is ready)

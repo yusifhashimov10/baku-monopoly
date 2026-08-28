@@ -319,7 +319,7 @@
   justify-content: center;
   background: radial-gradient(ellipse at center, #0d1a2a 0%, var(--bg-dark) 100%);
   position: relative;
-  overflow: hidden;
+  overflow: auto;
   padding: 12px;
 }
 

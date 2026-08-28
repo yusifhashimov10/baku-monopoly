@@ -88,9 +88,6 @@
         <button id="btn-resolve-debt" class="btn-primary hidden" onclick="resolveDebt()">
           ✅ <span data-az="Borcu Ödə" data-en="Resolve Debt">Borcu Ödə</span>
         </button>
-        <button id="btn-bankrupt-manual" class="btn-secondary hidden" style="margin-top: 5px; color: #ff4444; border-color: #ff4444;" onclick="declareBankrupt()">
-          ☠️ <span data-az="Müflis ol (Çıx)" data-en="Bankrupt (Quit)">Müflis ol (Çıx)</span>
-        </button>
       </div>
 
       <!-- Jail Actions -->
@@ -153,6 +150,11 @@
           <button class="btn-secondary chat-send" onclick="sendChat()">➤</button>
         </div>
       </div>
+      
+      <!-- Bankrupt Action (Moved here) -->
+      <button id="btn-bankrupt-manual" class="btn-secondary hidden" style="margin-top: 10px; color: #ff4444; border-color: #ff4444; width: 100%;" onclick="declareBankrupt()">
+        ☠️ <span data-az="Müflis ol (Çıx)" data-en="Bankrupt (Quit)">Müflis ol (Çıx)</span>
+      </button>
     </aside>
   </div>
 

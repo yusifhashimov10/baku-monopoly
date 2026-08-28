@@ -321,14 +321,18 @@ class GameEngine {
             this.phase = 'teleport';
             return { squareType: square.type, square, ownedBySelf: true, canTeleport: true };
           }
-          this.phase = this.lastDoubles ? 'rolling' : 'endturn';
+          if (this.phase !== 'debt') {
+            this.phase = this.lastDoubles ? 'rolling' : 'endturn';
+          }
           return { squareType: square.type, square, ownedBySelf: true };
         }
         // If property is mortgaged, no rent
         if (this._isPropertyMortgaged(square.id)) {
           this._addLog(`${square.name} ipotekadadır, icarə ödənilmir.`,
                        `${square.nameEn} is mortgaged, no rent collected.`);
-          this.phase = this.lastDoubles ? 'rolling' : 'endturn';
+          if (this.phase !== 'debt') {
+            this.phase = this.lastDoubles ? 'rolling' : 'endturn';
+          }
           return { squareType: square.type, square, mortgaged: true };
         }
         // Pay rent
@@ -336,7 +340,9 @@ class GameEngine {
         this._payPlayer(player, owner, rent);
         this._addLog(`${player.nameAz} ${owner.nameAz}-a ${rent}₼ icarə ödədi.`,
                      `${player.nameAz} paid ${rent}₼ rent to ${owner.nameEn}.`);
-        this.phase = this.lastDoubles ? 'rolling' : 'endturn';
+        if (this.phase !== 'debt') {
+          this.phase = this.lastDoubles ? 'rolling' : 'endturn';
+        }
         return { squareType: square.type, square, rentPaid: rent, rentTo: owner.id };
       }
 
@@ -344,7 +350,9 @@ class GameEngine {
         this._payFreeParking(player, square.amount);
         this._addLog(`${player.nameAz} ${square.amount}₼ vergi ödədi. Pulsuz Parka əlavə edildi.`,
                      `${player.nameAz} paid ${square.amount}₼ tax. Added to Free Parking.`);
-        this.phase = this.lastDoubles ? 'rolling' : 'endturn';
+        if (this.phase !== 'debt') {
+          this.phase = this.lastDoubles ? 'rolling' : 'endturn';
+        }
         return { squareType: 'tax', square, amountPaid: square.amount, freeParkingPool: this.freeParkingPool };
 
       case 'chance':
@@ -358,7 +366,9 @@ class GameEngine {
         player.money += pool;
         this.freeParkingPool = 0;
         this._addLog(`${player.nameAz} Pulsuz Parkdan ${pool}₼ aldı!`, `${player.nameAz} collected ${pool}₼ from Free Parking!`);
-        this.phase = this.lastDoubles ? 'rolling' : 'endturn';
+        if (this.phase !== 'debt') {
+          this.phase = this.lastDoubles ? 'rolling' : 'endturn';
+        }
         return { squareType: 'freeparking', collected: pool };
       }
 
@@ -432,11 +442,15 @@ class GameEngine {
       }
       case 'collectFromBank':
         this._collectFromBank(player, action.amount);
-        this.phase = this.lastDoubles ? 'rolling' : 'endturn';
+        if (this.phase !== 'debt') {
+          this.phase = this.lastDoubles ? 'rolling' : 'endturn';
+        }
         break;
       case 'payBank':
         this._payFreeParking(player, action.amount);
-        this.phase = this.lastDoubles ? 'rolling' : 'endturn';
+        if (this.phase !== 'debt') {
+          this.phase = this.lastDoubles ? 'rolling' : 'endturn';
+        }
         break;
       case 'collectFromAll':
         for (const p of this.players) {
@@ -444,7 +458,9 @@ class GameEngine {
             this._payPlayer(p, player, action.amount);
           }
         }
-        this.phase = this.lastDoubles ? 'rolling' : 'endturn';
+        if (this.phase !== 'debt') {
+          this.phase = this.lastDoubles ? 'rolling' : 'endturn';
+        }
         break;
       case 'payAll':
         for (const p of this.players) {
@@ -452,7 +468,9 @@ class GameEngine {
             this._payPlayer(player, p, action.amount);
           }
         }
-        this.phase = this.lastDoubles ? 'rolling' : 'endturn';
+        if (this.phase !== 'debt') {
+          this.phase = this.lastDoubles ? 'rolling' : 'endturn';
+        }
         break;
       case 'jail':
         this._sendToJail(player);
@@ -460,7 +478,9 @@ class GameEngine {
         break;
       case 'jailFree':
         player.jailFreeCards++;
-        this.phase = this.lastDoubles ? 'rolling' : 'endturn';
+        if (this.phase !== 'debt') {
+          this.phase = this.lastDoubles ? 'rolling' : 'endturn';
+        }
         break;
       case 'repairs': {
         let total = 0;
@@ -473,7 +493,9 @@ class GameEngine {
           }
         }
         this._payFreeParking(player, total);
-        this.phase = this.lastDoubles ? 'rolling' : 'endturn';
+        if (this.phase !== 'debt') {
+          this.phase = this.lastDoubles ? 'rolling' : 'endturn';
+        }
         break;
       }
     }
